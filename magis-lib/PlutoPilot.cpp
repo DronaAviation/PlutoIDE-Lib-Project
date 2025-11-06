@@ -13,9 +13,8 @@
  */
 void plutoRxConfig ( void ) {
   // Receiver mode: Uncomment one line for ESP or CAM or PPM setup.
-  // Receiver_Mode ( Rx_ESP );    // Onboard ESP
-  Receiver_Mode ( Rx_CAM );    // WiFi CAMERA
-  // Receiver_Mode ( Rx_PPM );    // PPM based
+  Receiver.rxMode ( Rx_ESP );    // Onboard ESP
+  // Receiver.rxMode ( Rx_PPM );    // PPM based
 }
 
 // The setup function is called once at Pluto's hardware startup

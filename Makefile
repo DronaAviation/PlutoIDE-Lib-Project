@@ -4,13 +4,19 @@ TARGET ?=
 FW_Version ?= 
 PROJECT ?=
 FLASH_SIZE ?= 
+API_Version ?=
 
 # Debugger options, must be empty or GDB
 DEBUG ?= 
 
 # Compile-time options
-OPTIONS ?= '__PROJECT__="$(PROJECT)"' \
+OPTIONS ?= '__FORKNAME__="$(FORKNAME)"' \
+		   			'__TARGET__="$(TARGET)"' \
+			 			'__FW_VER__="$(FW_Version)"' \
+		   			'__API_VER__="$(API_Version)"' \
+		   			'__PROJECT__="$(PROJECT)"' \
         		'__BUILD_DATE__="$(shell date +%d-%m-%Y)"' \
+        		'__BUILD_TIME__="$(shell date +%H:%M:%S)"' \
 
 VALID_TARGETS = PLUTOX PRIMUSX PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1
 
@@ -26,24 +32,32 @@ endif
 ROOT = $(Prj_Dir)
 # Conditional assignment based on the TARGET board
 
-  SRC_DIR = $(ROOT)
-  BUILD_DIR = $(ROOT)/Build
-  PLATFORM_DIR = $(ROOT)/API
-  CMSIS_DIR = $(ROOT)/lib/main/CMSIS
-  INCLUDE_DIRS	 = $(SRC_DIR)
-  LINKER_DIR	 = $(Linker_LD)
-  LIB_DIR = $(LIB_DIR_C)
+SRC_DIR = $(ROOT)
+BUILD_DIR = $(ROOT)/Build
+PLATFORM_DIR = $(ROOT)/API
+CMSIS_DIR = $(ROOT)/lib/main/CMSIS
+INCLUDE_DIRS	 = $(SRC_DIR)
+LINKER_DIR	 = $(Linker_LD)
+LIB_DIR = $(LIB_DIR_C)
+VERSION_DIR = $(LIB_DIR)/version
 
 
 # Function to find all source files
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
-# Source files in the src directory
-CSOURCES := $(subst $(ROOT)/,, $(call rwildcard,$(SRC_DIR)/,*.cpp))
+# ROOT sources (kept relative to ROOT)
+ROOT_SOURCES := $(subst $(ROOT)/,, $(call rwildcard,$(SRC_DIR)/,*.cpp))
 
-# Source files from the libraries
-CSOURCES := $(CSOURCES) \
-            $(subst $(ROOT)/,, $(call rwildcard, $(LIB_DIR)/,*.cpp))
+
+ifeq ($(TARGET),$(filter $(TARGET),PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1))
+# External LIB sources (kept as full paths for now)
+LIB_SOURCES  := $(call rwildcard,$(LIB_DIR)/,*.cpp)
+else
+LIB_SOURCES  := $(subst $(ROOT)/,, $(call rwildcard, $(LIB_DIR)/,*.cpp))
+endif
+# If you still want a combined list for printing/debug:
+CSOURCES := $(ROOT_SOURCES) \
+						$(LIB_SOURCES)
 
 # Include directories for the platform headers
 DIRECTORY = $(sort $(dir $(call rwildcard, $(PLATFORM_DIR)/,*.*)))
@@ -53,6 +67,12 @@ INCLUDE_DIRS := $(DIRECTORY)
 DIRECTORY = $(sort $(dir $(call rwildcard, $(SRC_DIR)/,*.*)))
 INCLUDE_DIRS := $(INCLUDE_DIRS) \
                 $(DIRECTORY)
+
+ifeq ($(TARGET),$(filter $(TARGET),PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1))
+# Include directories for library headers too
+LIB_INCLUDE_DIRS = $(sort $(dir $(call rwildcard, $(LIB_DIR)/,*.*)))
+INCLUDE_DIRS := $(INCLUDE_DIRS) $(LIB_INCLUDE_DIRS)
+endif
 
 # Linker script path
 LD_SCRIPT = $(LINKER_DIR)/stm32_flash_f303_$(FLASH_SIZE)k.ld
@@ -154,7 +174,19 @@ TARGET_BIN = $(BUILD_DIR)/$(TARGET)/$(TARGET).bin
 TARGET_HEX = $(BUILD_DIR)/$(TARGET)/$(PROJECT)_$(TARGET)_$(FW_Version).hex
 TARGET_ELF = $(BUILD_DIR)/$(TARGET)/$(TARGET).elf
 TARGET_MAP = $(BUILD_DIR)/$(TARGET)/$(TARGET).map
-TARGET_OBJS = $(addsuffix .o,$(addprefix $(BUILD_DIR)/$(TARGET)/bin/,$(basename $(CSOURCES))))
+# TARGET_OBJS = $(addsuffix .o,$(addprefix $(BUILD_DIR)/$(TARGET)/bin/,$(basename $(CSOURCES))))
+# Objects for ROOT sources
+ROOT_OBJS := $(addsuffix .o,$(addprefix $(BUILD_DIR)/$(TARGET)/bin/,$(basename $(ROOT_SOURCES))))
+
+# Objects for LIB sources go into a safe folder (no drive letters in names)
+LIB_REL_SOURCES := $(patsubst $(LIB_DIR)/%,%,$(LIB_SOURCES))
+LIB_OBJS := $(addsuffix .o,$(addprefix $(BUILD_DIR)/$(TARGET)/bin/,$(basename $(LIB_REL_SOURCES))))
+
+ifeq ($(TARGET),$(filter $(TARGET),PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1))
+TARGET_OBJS := $(ROOT_OBJS) $(LIB_OBJS)
+else
+TARGET_OBJS := $(ROOT_OBJS)
+endif
 TARGET_DEPS = $(addsuffix .d,$(addprefix $(BUILD_DIR)/$(TARGET)/bin/,$(basename $(TARGET)_SRC)))
 
 # Final output
@@ -179,6 +211,12 @@ $(BUILD_DIR)/$(TARGET)/bin/%.o: %.cpp
 	@$(ECHO) %% $(notdir $<)
 	@$(CC) -c -o $@ $(CCFLAGS) $<
 
+ifeq ($(TARGET),$(filter $(TARGET),PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1))
+$(BUILD_DIR)/$(TARGET)/bin/%.o: $(LIB_DIR)/%.cpp
+	@$(MKDIR) -p $(dir $@)
+	@$(ECHO) %% $(notdir $<)
+	@$(CC) -c -o $@ $(CCFLAGS) $<
+endif
 # Compile C source files
 $(BUILD_DIR)/$(TARGET)/bin/%.o: %.c
 	@$(MKDIR) -p $(dir $@)

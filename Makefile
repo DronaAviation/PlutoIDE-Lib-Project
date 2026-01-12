@@ -1,5 +1,5 @@
 # Target board to build for, dynamic based on board selection
-FORKNAME	=	MAGISV2
+FORKNAME	?=	MAGISV2
 TARGET ?= 
 FW_Version ?= 
 PROJECT ?=
@@ -102,7 +102,7 @@ ifeq ($(DEBUG),GDB)
   LTO_FLAGS = $(OPTIMIZE)
 else
   OPTIMIZE = -Os
-  LTO_FLAGS = -flto -fuse-linker-plugin $(OPTIMIZE)
+  LTO_FLAGS = $(OPTIMIZE)
 endif
 
 DEBUG_FLAGS = -ggdb3 -DDEBUG
@@ -117,12 +117,11 @@ CFLAGS = $(ARCH_FLAGS) \
          -Wall -Wextra -Wunsafe-loop-optimizations -Wdouble-promotion \
          -ffunction-sections \
          -fdata-sections \
+         -fno-lto \
          $(DEVICE_FLAGS) \
          -DUSE_STDPERIPH_DRIVER \
          $(TARGET_FLAGS) \
-         -D'__NAME__="$(FORKNAME)"' \
          -D'__TARGET__="$(TARGET)"' \
-         -save-temps=obj \
          -MMD -MP
 
 # C++ Compiler flags
@@ -135,12 +134,11 @@ CCFLAGS = $(ARCH_FLAGS) \
           -Wall -Wextra -Wunsafe-loop-optimizations -Wdouble-promotion \
           -ffunction-sections \
           -fdata-sections \
+          -fno-lto \
           $(DEVICE_FLAGS) \
           -DUSE_STDPERIPH_DRIVER \
           $(TARGET_FLAGS) \
-          -D'__NAME__="$(FORKNAME)"' \
           -D'__TARGET__="$(TARGET)"' \
-          -save-temps=obj \
           -MMD -MP
 
 # Assembler flags

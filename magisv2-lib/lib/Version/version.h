@@ -1,17 +1,17 @@
 /*******************************************************************************
  #  SPDX-License-Identifier: GPL-3.0-or-later                                  #
- #  SPDX-FileCopyrightText: 2025 Drona Aviation                                #
+ #  SPDX-FileCopyrightText: 2025 Cleanflight & Drona Aviation                  #
  #  -------------------------------------------------------------------------  #
  #  Copyright (c) 2025 Drona Aviation                                          #
  #  All rights reserved.                                                       #
  #  -------------------------------------------------------------------------  #
  #  Author: Ashish Jaiswal (MechAsh) <AJ>                                      #
- #  Project: PlutoIDE-Lib-Project                                              #
- #  File: \src\main\API\PlutoPilot.h                                           #
+ #  Project: MagisV2                                                           #
+ #  File: \src\main\version.h                                                  #
  #  Created Date: Sat, 22nd Feb 2025                                           #
  #  Brief:                                                                     #
  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  #
- #  Last Modified: Thu, 5th Feb 2026                                           #
+ #  Last Modified: Wed, 21st Jan 2026                                          #
  #  Modified By: AJ                                                            #
  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  #
  #  HISTORY:                                                                   #
@@ -19,31 +19,35 @@
  #  ----------	---	---------------------------------------------------------  #
 *******************************************************************************/
 
-#ifndef _PlutoPilot_H_
-#define _PlutoPilot_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "RxConfig.h"
-#include "Peripherals.h"
-#include "Status-LED.h"
-#include "Motor.h"
-#include "BMS.h"
-#include "FC-Data.h"
-#include "RC-Interface.h"
-#include "FC-Control.h"
-#include "FC-Config.h"
-#include "Scheduler-Timer.h"
-#include "Debugging.h"
-#include "Serial-IO.h"
-#include "XRanging.h"
+#define MAGIS_IDENTIFIER          "MAGIS V2"
 
-void plutoRxConfig ( void );
+#define FW_RELEASE_TYPE           "C"
+#define FW_VERSION_LENGTH         5
+#define API_VERSION_LENGTH        6
+#define PROJECT_LENGTH            8    // lower case hexadecimal digits.
+#define BUILD_DATE_LENGTH 11
+#define BUILD_TIME_LENGTH 8
 
-void plutoInit ( void );
+#define STR_HELPER( x )           #x
+#define STR( x )                  STR_HELPER ( x )
 
-void onLoopStart ( void );
+#define MW_VERSION                231
 
-void plutoLoop ( void );
+#define GIT_SHORT_REVISION_LENGTH 7    // lower case hexadecimal digits.
 
-void onLoopFinish ( void );
+extern const char *const targetName;
+extern const char *const shortGitRevision;
+extern const char *const buildDate;    // "MMM DD YYYY" MMM = Jan/Feb/...
+extern const char *const buildTime;    // "HH:MM:SS"
+extern const char *const FwVersion;
+extern const char *const ApiVersion;
+extern const char *const FwName;
+extern const char *const Project;
 
+#ifdef __cplusplus
+}
 #endif

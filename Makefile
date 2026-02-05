@@ -5,7 +5,7 @@ FW_Version ?=
 PROJECT ?=
 FLASH_SIZE ?= 
 API_Version ?=
-
+RAM_SIZE 	?=
 # Debugger options, must be empty or GDB
 DEBUG ?= 
 
@@ -23,6 +23,7 @@ VALID_TARGETS = PLUTOX PRIMUSX PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1
 ifeq ($(FLASH_SIZE),)
 ifeq ($(TARGET),$(filter $(TARGET),PLUTOX PRIMUSX PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1))
 FLASH_SIZE = 256
+RAM_SIZE 	= 40
 else
 $(error FLASH_SIZE not configured for target)
 endif
@@ -40,7 +41,7 @@ INCLUDE_DIRS	 = $(SRC_DIR)
 LINKER_DIR	 = $(Linker_LD)
 LIB_DIR = $(LIB_DIR_C)
 VERSION_DIR = $(LIB_DIR)/version
-
+$(shell mkdir -p /tmp >/dev/null 2>&1 || true)
 
 # Function to find all source files
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
@@ -186,12 +187,29 @@ else
 TARGET_OBJS := $(ROOT_OBJS)
 endif
 TARGET_DEPS = $(addsuffix .d,$(addprefix $(BUILD_DIR)/$(TARGET)/bin/,$(basename $(TARGET)_SRC)))
+TOTAL_FILES := $(shell echo $$(($(words $(TARGET_OBJS)) + 2)))
+COMPILED_COUNT = 0
+
+define progress_echo
+  $(eval COMPILED_COUNT=$(shell echo $$(($(COMPILED_COUNT)+1))))
+  @printf "\033[1;32m[%3d %%]\033[0m %s\n" \
+    $$(($(COMPILED_COUNT) * 100 / $(TOTAL_FILES))) \
+    "$(notdir $<)"
+endef
+
+define progress_step
+  $(eval COMPILED_COUNT=$(shell echo $$(($(COMPILED_COUNT)+1))))
+  @printf "\033[1;32m[%3d %%]\033[0m %s\n" \
+    $$(($(COMPILED_COUNT) * 100 / $(TOTAL_FILES))) \
+    "$1"
+endef
 
 # Final output
-$(info $(TARGET_OBJS))
+# $(info $(TARGET_OBJS))
 
 # Target Hex
 $(TARGET_HEX): $(TARGET_ELF)
+	$(call progress_step,Generating HEX file...)
 	$(OBJCOPY) -O ihex --set-start 0x8000000 $< $@
 
 # Target Binary
@@ -200,39 +218,70 @@ $(TARGET_BIN): $(TARGET_ELF)
 
 # Target ELF
 $(TARGET_ELF): $(TARGET_OBJS)
+	$(call progress_step,Linking firmware...)
 	$(CC) -o $@ $^ $(LDFLAGS)
-	$(SIZE) $(TARGET_ELF) 
+	$(SIZE) $(TARGET_ELF)
+	@{ \
+	echo "=========== MEMORY SUMMARY ===========" ; \
+	set -- $$($(SIZE) --format=berkeley $(abspath $(TARGET_ELF)) | sed -n '2p'); \
+	TEXT=$$1; DATA=$$2; BSS=$$3; \
+	FLASH_USED_B=$$((TEXT + DATA)); \
+	RAM_USED_B=$$((DATA + BSS)); \
+	FLASH_TOTAL_B=$$(( $(FLASH_SIZE) * 1024 )); \
+	RAM_TOTAL_B=$$(( $(RAM_SIZE) * 1024 )); \
+	BAR_WIDTH=30; \
+	FLASH_PCT=$$((FLASH_USED_B * 100 / FLASH_TOTAL_B)); \
+	RAM_PCT=$$((RAM_USED_B * 100 / RAM_TOTAL_B)); \
+	FLASH_FILL=$$((FLASH_PCT * BAR_WIDTH / 100)); \
+	RAM_FILL=$$((RAM_PCT * BAR_WIDTH / 100)); \
+	FLASH_EMPTY=$$((BAR_WIDTH - FLASH_FILL)); \
+	RAM_EMPTY=$$((BAR_WIDTH - RAM_FILL)); \
+	FLASH_KB_INT=$$((FLASH_USED_B / 1024)); \
+	FLASH_KB_DEC=$$(( (FLASH_USED_B % 1024) * 10 / 1024 )); \
+	RAM_KB_INT=$$((RAM_USED_B / 1024)); \
+	RAM_KB_DEC=$$(( (RAM_USED_B % 1024) * 10 / 1024 )); \
+	printf "Flash [%.*s%.*s] %d%%  (%d.%d KB / %d KB)\n" \
+		$$FLASH_FILL "##############################" \
+		$$FLASH_EMPTY "                              " \
+		$$FLASH_PCT $$FLASH_KB_INT $$FLASH_KB_DEC $(FLASH_SIZE); \
+	printf "RAM   [%.*s%.*s] %d%%  (%d.%d KB / %d KB)\n" \
+		$$RAM_FILL "##############################" \
+		$$RAM_EMPTY "                              " \
+		$$RAM_PCT $$RAM_KB_INT $$RAM_KB_DEC $(RAM_SIZE); \
+	echo "===================================="; \
+	}
 
 # Compile C++ source files
 $(BUILD_DIR)/$(TARGET)/bin/%.o: %.cpp
 	@$(MKDIR) -p $(dir $@)
-	@$(ECHO) %% $(notdir $<)
+	$(call progress_echo)
 	@$(CC) -c -o $@ $(CCFLAGS) $<
 
 ifeq ($(TARGET),$(filter $(TARGET),PRIMUSX2 PRIMUS_V5 PRIMUS_X2_v1))
 $(BUILD_DIR)/$(TARGET)/bin/%.o: $(LIB_DIR)/%.cpp
 	@$(MKDIR) -p $(dir $@)
-	@$(ECHO) %% $(notdir $<)
+	$(call progress_echo)
 	@$(CC) -c -o $@ $(CCFLAGS) $<
 endif
 # Compile C source files
 $(BUILD_DIR)/$(TARGET)/bin/%.o: %.c
 	@$(MKDIR) -p $(dir $@)
-	@$(ECHO) %% $(notdir $<)
+	$(call progress_echo)
 	@$(C) -c -o $@ $(CFLAGS) $<
 
 # Assemble source files
 $(BUILD_DIR)/$(TARGET)/bin/%.o: %.s
 	@$(MKDIR) -p $(dir $@)
-	@$(ECHO) %% $(notdir $<)
+	$(call progress_echo)
 	@$(CC) -c -o $@ $(ASFLAGS) $<
 
 $(BUILD_DIR)/$(TARGET)/bin/%.o: %.S
 	@$(MKDIR) -p $(dir $@)
-	@$(ECHO) %% $(notdir $<)
+	$(call progress_echo)
 	@$(CC) -c -o $@ $(ASFLAGS) $<
 
 # All task
+
 all: binary
 
 # Clean all build files

@@ -11,12 +11,14 @@
  #  Created Date: Sat, 22nd Feb 2025                                           #
  #  Brief:                                                                     #
  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  #
- #  Last Modified: Thu, 5th Feb 2026                                           #
+ #  Last Modified: Fri, 16th Oct 2026                                          #
  #  Modified By: AJ                                                            #
  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  #
  #  HISTORY:                                                                   #
  #  Date      	By	Comments                                                   #
  #  ----------	---	---------------------------------------------------------  #
+ #  2026-04-04	techsavvyomi	Added RGB-LED.h include for WS2812B API        #
+ #  2026-10-16	AJ	Added X1Ranging.h include ( VL53L1X laser API )            #
 *******************************************************************************/
 
 #ifndef _PlutoPilot_H_
@@ -35,6 +37,9 @@
 #include "Debugging.h"
 #include "Serial-IO.h"
 #include "XRanging.h"
+#include "X1Ranging.h"
+#include "RGB-LED.h"
+#include "Oled.h"
 
 void plutoRxConfig ( void );
 
